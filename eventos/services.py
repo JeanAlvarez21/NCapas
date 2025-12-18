@@ -1,8 +1,8 @@
 from typing import Optional, List
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import Deporte, Evento, Participante
-from .repositories import DeporteRepository, EventoRepository, ParticipanteRepository
+from .models import Deporte, Evento, Participante, Equipo
+from .repositories import DeporteRepository, EventoRepository, ParticipanteRepository, EquipoRepository
 
 
 class DeporteService:
@@ -306,4 +306,98 @@ class EventoService:
             raise ValidationError(f"No se encontró el participante con ID {participante_id}")
 
         return EventoRepository.remover_participante(evento_id, participante_id)
+
+
+class EquipoService:
+    """Servicio con lógica de negocio para Equipo"""
+
+    @staticmethod
+    def obtener_todos():
+        """Obtener todos los equipos"""
+        return EquipoRepository.get_all()
+
+    @staticmethod
+    def obtener_por_id(equipo_id: int) -> Optional[Equipo]:
+        """Obtener un equipo por su ID"""
+        return EquipoRepository.get_by_id(equipo_id)
+
+    @staticmethod
+    def obtener_por_deporte(deporte_id: int):
+        """Obtener equipos filtrados por deporte"""
+        return EquipoRepository.get_by_deporte(deporte_id)
+
+    @staticmethod
+    def crear(nombre: str, deporte_id: int, ciudad: str, fecha_fundacion=None) -> Equipo:
+        """Crear un nuevo equipo con validaciones de negocio"""
+        # Validar campos obligatorios
+        if not nombre or not nombre.strip():
+            raise ValidationError("El nombre del equipo es obligatorio")
+        if not ciudad or not ciudad.strip():
+            raise ValidationError("La ciudad del equipo es obligatoria")
+
+        # Validar que el deporte exista
+        deporte = DeporteRepository.get_by_id(deporte_id)
+        if not deporte:
+            raise ValidationError(f"No se encontró el deporte con ID {deporte_id}")
+
+        # Validar que no exista un equipo con el mismo nombre
+        equipo_existente = EquipoRepository.get_by_nombre(nombre.strip())
+        if equipo_existente:
+            raise ValidationError(f"Ya existe un equipo con el nombre '{nombre.strip()}'")
+
+        return EquipoRepository.create(
+            nombre=nombre.strip(),
+            deporte_id=deporte_id,
+            ciudad=ciudad.strip(),
+            fecha_fundacion=fecha_fundacion
+        )
+
+    @staticmethod
+    def actualizar(equipo_id: int, nombre: str = None, deporte_id: int = None,
+                   ciudad: str = None, fecha_fundacion=None) -> Equipo:
+        """Actualizar un equipo existente con validaciones"""
+        equipo = EquipoRepository.get_by_id(equipo_id)
+        if not equipo:
+            raise ValidationError(f"No se encontró el equipo con ID {equipo_id}")
+
+        # Validar nombre si se proporciona
+        if nombre:
+            nombre_limpio = nombre.strip()
+            if not nombre_limpio:
+                raise ValidationError("El nombre del equipo no puede estar vacío")
+            # Validar que no exista otro equipo con el mismo nombre
+            equipo_existente = EquipoRepository.get_by_nombre(nombre_limpio)
+            if equipo_existente and equipo_existente.id != equipo_id:
+                raise ValidationError(f"Ya existe otro equipo con el nombre '{nombre_limpio}'")
+            nombre = nombre_limpio
+
+        # Validar ciudad si se proporciona
+        if ciudad:
+            ciudad_limpia = ciudad.strip()
+            if not ciudad_limpia:
+                raise ValidationError("La ciudad del equipo no puede estar vacía")
+            ciudad = ciudad_limpia
+
+        # Validar deporte si se proporciona
+        if deporte_id:
+            deporte = DeporteRepository.get_by_id(deporte_id)
+            if not deporte:
+                raise ValidationError(f"No se encontró el deporte con ID {deporte_id}")
+
+        return EquipoRepository.update(
+            equipo,
+            nombre=nombre,
+            deporte_id=deporte_id,
+            ciudad=ciudad,
+            fecha_fundacion=fecha_fundacion
+        )
+
+    @staticmethod
+    def eliminar(equipo_id: int) -> bool:
+        """Eliminar un equipo con validaciones de negocio"""
+        equipo = EquipoRepository.get_by_id(equipo_id)
+        if not equipo:
+            raise ValidationError(f"No se encontró el equipo con ID {equipo_id}")
+
+        return EquipoRepository.delete(equipo_id)
 

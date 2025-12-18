@@ -1,9 +1,10 @@
-version: '3.8'
-
 services:
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py makemigrations --noinput &&
+             python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
@@ -12,8 +13,14 @@ services:
     environment:
       - DEBUG=1
       - SECRET_KEY=django-insecure-change-in-production
+      - DB_HOST=db
+      - DB_NAME=eventos_db
+      - DB_USER=eventos_user
+      - DB_PASSWORD=eventos_pass
+      - DB_PORT=5432
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
   db:
@@ -27,8 +34,12 @@ services:
     ports:
       - "5432:5432"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eventos_user -d eventos_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
   static_volume:
-
